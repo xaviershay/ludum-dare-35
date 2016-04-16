@@ -1,6 +1,6 @@
 module Example3 where
 
-import Prelude (Unit, (*), (/), bind, negate, ($), (+), return, (-), (<<<), liftM1, unit)
+import Prelude (Unit, (*), (/), bind, negate, ($), (+), return, (-), (<<<), liftM1, unit, map)
 import Graphics.WebGLAll (EffWebGL, Buffer, Mat4, Uniform, Vec3, Attribute, WebGLProg, WebGLContext, Capacity(DEPTH_TEST),
                         Mask(DEPTH_BUFFER_BIT, COLOR_BUFFER_BIT), Mode(TRIANGLE_STRIP, TRIANGLES), Shaders(Shaders),
                         drawArr, bindBufAndSetVertexAttr, setUniformFloats, clear, viewport, getCanvasHeight, getCanvasWidth,
@@ -15,8 +15,10 @@ import Control.Monad.Eff.Console (CONSOLE, log)
 import Data.Date (Now, now, toEpochMilliseconds)
 import Data.Time (Milliseconds(Milliseconds))
 import Data.Maybe (Maybe(Just, Nothing))
-import Math (pi)
+import Math (pi, sin, cos)
 import Data.Int (toNumber)
+import Data.Array (concatMap)
+import Data.Tuple
 
 shaders :: Shaders {aVertexPosition :: Attribute Vec3, aVertexColor :: Attribute Vec3,
                       uPMatrix :: Uniform Mat4, uMVMatrix:: Uniform Mat4}
@@ -46,6 +48,7 @@ shaders = Shaders
       }
   """
 
+type AnimatedNumber = Tuple Number Number
 type State = {
                 context :: WebGLContext,
                 shaderProgram :: WebGLProg,
@@ -59,7 +62,8 @@ type State = {
                 buf2Colors :: Buffer T.Float32,
                 lastTime :: Maybe Number,
                 rTri :: Number,
-                rSquare :: Number
+                rSquare :: Number,
+                angles :: Array AnimatedNumber
             }
 
 main :: Eff (console :: CONSOLE, alert :: Alert, now :: Now) Unit
@@ -104,7 +108,8 @@ main =
                         buf2Colors : buf2Colors,
                         lastTime : Nothing,
                         rTri : 0.0,
-                        rSquare : 0.0
+                        rSquare : 0.0,
+                        angles: [Tuple 0.0 0.0, Tuple 0.0 90.0, Tuple 120.0 180.0, Tuple 240.0 270.0]
                       }
           tick state
 
@@ -140,21 +145,25 @@ drawScene s = do
       let pMatrix = M.makePerspective 45.0 (toNumber canvasWidth / toNumber canvasHeight) 0.1 100.0
       setUniformFloats s.uPMatrix (M.toArray pMatrix)
       let mvMatrix =
-          M.rotate (degToRad s.rTri) (V3.vec3' [0.0, 1.0, 0.0])
-            $ M.translate  (V3.vec3 (-1.5) 0.0 (-7.0)) M.identity
+          M.rotate (degToRad s.rTri) (V3.vec3' [0.0, 0.0, 1.0])
+            $ M.translate  (V3.vec3 0.0 0.0 (-7.0)) M.identity
 
       setUniformFloats s.uMVMatrix (M.toArray mvMatrix)
 
-      bindBufAndSetVertexAttr s.buf1Colors s.aVertexColor
-      drawArr TRIANGLES s.buf1 s.aVertexPosition
+      let angles = map (degToRad <<< fst) s.angles
+      colors <- makeBufferFloat $ concatMap (\_ -> [0.0, 0.5, 1.0, 1.0]) angles
+      buf1 <- makeBufferFloat $ concatMap (\x -> [cos x,  sin x,  0.0]) angles
 
-      let mvMatrix' =
-          M.rotate (degToRad s.rSquare) (V3.vec3' [1.0, 0.0, 0.0])
-            $ M.translate  (V3.vec3 (1.5) 0.0 (-7.0)) M.identity
-      setUniformFloats s.uMVMatrix (M.toArray mvMatrix')
+      bindBufAndSetVertexAttr colors s.aVertexColor
+      drawArr TRIANGLE_STRIP buf1 s.aVertexPosition
 
-      bindBufAndSetVertexAttr s.buf2Colors s.aVertexColor
-      drawArr TRIANGLE_STRIP s.buf2 s.aVertexPosition
+      --let mvMatrix' =
+      --    M.rotate (degToRad s.rSquare) (V3.vec3' [1.0, 0.0, 0.0])
+      --      $ M.translate  (V3.vec3 (1.5) 0.0 (-7.0)) M.identity
+      --setUniformFloats s.uMVMatrix (M.toArray mvMatrix')
+
+      --bindBufAndSetVertexAttr s.buf2Colors s.aVertexColor
+      --drawArr TRIANGLE_STRIP s.buf2 s.aVertexPosition
 
 -- | Convert from radians to degrees.
 radToDeg :: Number -> Number
