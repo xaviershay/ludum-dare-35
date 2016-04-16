@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 
 rm -r dist
 mkdir dist

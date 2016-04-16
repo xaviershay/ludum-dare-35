@@ -26,6 +26,8 @@
     "purescript-datetime" : "*",
     "purescript-random" : "*",
     "purescript-extensions" : "*",
-    "purescript-console" : "*"
+    "purescript-console" : "*",
+    "purescript-debug" : "*",
+    "purescript-orders" : "*"
   }
 }
